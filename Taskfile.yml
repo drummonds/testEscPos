@@ -19,3 +19,22 @@ tasks:
       - GOOS=windows GOARCH=amd64 go build -o testescpos.exe cmd/test1/main.go
       - cp testescpos.exe /mnt/c/t/testescpos.exe
     silent: true
+
+  build-test2:
+    desc: Build test2 web server
+    cmds:
+      - go build -o cmd/test2/test2 cmd/test2/main.go
+    silent: true
+
+  update-version:
+    desc: Update version information
+    cmds:
+      - ./scripts/update-version.sh
+    silent: false
+
+  build-with-version:
+    desc: Update version and build test2
+    deps: [update-version]
+    cmds:
+      - go build -o cmd/test2/test2 cmd/test2/main.go
+    silent: true

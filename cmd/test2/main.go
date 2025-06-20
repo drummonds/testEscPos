@@ -7,12 +7,18 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+
+	"testescpos/version"
 
 	"github.com/mect/go-escpos"
+	"golang.org/x/text/width"
 )
 
 var p *escpos.Printer
 var tmpl *template.Template
+
+const maxLineLength = 27
 
 // min function that was missing
 func min(a, b int) int {
@@ -20,6 +26,127 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// max function for smart wrapping
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// wrapTextUnicode is a Unicode-aware text wrapping function
+func wrapTextUnicode(text string, maxWidth int) []string {
+	if maxWidth <= 0 {
+		return []string{text}
+	}
+
+	var lines []string
+	var currentLine strings.Builder
+	currentWidth := 0
+
+	// Normalize the text to handle full-width characters
+	normalized := width.Narrow.String(text)
+
+	for _, r := range normalized {
+		charWidth := runeWidth(r)
+
+		// If adding this character would exceed the line width
+		if currentWidth+charWidth > maxWidth && currentWidth > 0 {
+			// Start a new line
+			lines = append(lines, strings.TrimSpace(currentLine.String()))
+			currentLine.Reset()
+			currentWidth = 0
+		}
+
+		// Add the character to the current line
+		currentLine.WriteRune(r)
+		currentWidth += charWidth
+	}
+
+	// Add the last line if it has content
+	if currentLine.Len() > 0 {
+		lines = append(lines, strings.TrimSpace(currentLine.String()))
+	}
+
+	// Handle empty input
+	if len(lines) == 0 {
+		return []string{""}
+	}
+
+	return lines
+}
+
+// runeWidth returns the display width of a rune
+func runeWidth(r rune) int {
+	switch {
+	case r == '\t':
+		return 4 // Tab width
+	case r == '\n':
+		return 0 // Newlines don't take width
+	case unicode.IsControl(r):
+		return 0 // Control characters don't take width
+	case width.LookupRune(r).Kind() == width.EastAsianWide:
+		return 2 // Full-width characters
+	default:
+		return 1 // Regular characters
+	}
+}
+
+// wrapText is a more efficient text wrapping function
+func wrapText(text string, width int) []string {
+	if width <= 0 {
+		return []string{text}
+	}
+
+	var lines []string
+	words := strings.Fields(text)
+
+	if len(words) == 0 {
+		return []string{""}
+	}
+
+	currentLine := words[0]
+
+	for _, word := range words[1:] {
+		if len(currentLine)+1+len(word) <= width {
+			currentLine += " " + word
+		} else {
+			lines = append(lines, currentLine)
+			currentLine = word
+		}
+	}
+
+	if currentLine != "" {
+		lines = append(lines, currentLine)
+	}
+
+	return lines
+}
+
+// printMessageLines prints a message line by line, wrapping at maxLineLength characters
+func printMessageLines(message string) {
+	message = strings.TrimSpace(message)
+	if message == "" {
+		return
+	}
+
+	// Split by line breaks and process each line
+	lines := strings.Split(message, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			p.PrintLn("") // Print blank line for empty lines
+			continue
+		}
+
+		// Use the Unicode-aware wrapping function
+		wrappedLines := wrapTextUnicode(line, maxLineLength)
+		for _, wrappedLine := range wrappedLines {
+			p.PrintLn(wrappedLine)
+		}
+	}
 }
 
 func label(message string, num int) error {
@@ -43,14 +170,7 @@ func label(message string, num int) error {
 		return fmt.Errorf("message cannot be empty")
 	}
 
-	for len(message) > 0 {
-		p.PrintLn(message[:min(30, len(message))])
-		if len(message) > 30 {
-			message = message[30:]
-		} else {
-			break
-		}
-	}
+	printMessageLines(message)
 
 	p.Align(escpos.AlignCenter)
 	p.Barcode(fmt.Sprintf("%d", num), escpos.BarcodeTypeCODE39) // print barcode
@@ -137,6 +257,14 @@ const htmlTemplate = `
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -158,14 +286,20 @@ const htmlTemplate = `
             {{.Status}}
         </div>
         {{end}}
+        <div class="footer">
+            <div>Version: {{.Version}}</div>
+            <div>Built: {{.BuildDate}}</div>
+        </div>
     </div>
 </body>
 </html>
 `
 
 type PageData struct {
-	Status  string
-	Success bool
+	Status    string
+	Success   bool
+	Version   string
+	BuildDate string
 }
 
 func handlePrint(w http.ResponseWriter, r *http.Request) {
@@ -203,8 +337,10 @@ func renderPage(w http.ResponseWriter, status string, success bool) {
 	}
 
 	data := PageData{
-		Status:  status,
-		Success: success,
+		Status:    status,
+		Success:   success,
+		Version:   version.GetVersion(),
+		BuildDate: version.GetBuildDate(),
 	}
 
 	err := tmpl.Execute(w, data)
@@ -229,7 +365,8 @@ func main() {
 		return
 	}
 
-	fmt.Println("Starting web server on http://localhost:8080")
+	fmt.Printf("Starting web server on http://localhost:8080\n")
+	fmt.Printf("Version: %s\n", version.GetVersionInfo())
 	fmt.Println("Printer initialized successfully")
 
 	http.HandleFunc("/", handlePrint)
