@@ -11,3 +11,11 @@ tasks:
       - go build
       - sudo ./testescpos
     silent: true
+
+  build-windows:
+    desc: Build for Windows
+    aliases: [bw]
+    cmds:
+      - GOOS=windows GOARCH=amd64 go build -o testescpos.exe cmd/test1/main.go
+      - cp testescpos.exe /mnt/c/t/testescpos.exe
+    silent: true
