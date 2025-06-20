@@ -95,13 +95,18 @@ const htmlTemplate = `
             font-weight: bold;
             color: #555;
         }
-        input[type="text"], input[type="number"] {
+        input[type="text"], input[type="number"], textarea {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 16px;
             box-sizing: border-box;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
         }
         button {
             background-color: #007bff;
@@ -140,7 +145,7 @@ const htmlTemplate = `
         <form method="POST" action="/print">
             <div class="form-group">
                 <label for="message">Message to Print:</label>
-                <input type="text" id="message" name="message" placeholder="Enter your message here..." required>
+                <textarea id="message" name="message" placeholder="Enter your message here..." required></textarea>
             </div>
             <div class="form-group">
                 <label for="barcode">Barcode Number:</label>
