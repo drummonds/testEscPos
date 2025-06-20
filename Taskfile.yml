@@ -30,7 +30,7 @@ tasks:
     desc: Run test2 web server
     deps: [build-test2]
     cmds:
-      - ./cmd/test2/test2
+      - sudo ./cmd/test2/test2
     silent: true
 
   update-version:

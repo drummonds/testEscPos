@@ -9,7 +9,7 @@ import (
 var (
 	Version   = "0.1.0"
 	BuildDate = time.Now().Format("2006-01-02 15:04:05")
-	GitCommit = "44d4aed"
+	GitCommit = "2359f1b"
 )
 
 // GetVersionInfo returns formatted version information
