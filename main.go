@@ -60,13 +60,9 @@ func main() {
 		return
 	}
 	// label("Do email", 5)
-	label("Talk to exa a 10", 5)
-	label("Dry cleaning", 5)
-	label("Water garden", 5)
-	label("WEb IF for labels", 5)
-	label("sell keybaords", 5)
-	label("sell toothbrush", 5)
-	label("Move chest in bthroom", 5)
+	label("Send link to Claire", 5)
+	label("make lunch", 5)
+	// label("make lunch", 5)
 	// label("", 5)
 	// label("Take FLORA for wallk", 6)
 }
